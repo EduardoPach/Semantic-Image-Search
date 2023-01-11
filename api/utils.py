@@ -116,17 +116,18 @@ def compute_dataset_visual_embedding(
         The device to run the inference on. It can be 'cpu' or 'cuda:x' where x is the index of the GPU, by default "cpu"
     """
     loop = tqdm(batch_generator)
-    temp_embeddings_dir = Path(embeddings_temp_dir_path)
+    embeddings_temp_dir = Path(embeddings_temp_dir_path)
     embeddings_dir = Path(embeddings_dir_path)
     for batch_idx, batch in enumerate(loop):
         embedding = compute_embedding(model, processor, batch, device=device).detach().numpy()
-        embedding_name = temp_embeddings_dir / f"{batch_idx:05d}.npy"
-        if not temp_embeddings_dir.exists():
-            os.mkdir(temp_embeddings_dir)
+        embedding_name = embeddings_temp_dir / f"{batch_idx:05d}.npy"
+        if not embeddings_temp_dir.exists():
+            os.mkdir(embeddings_temp_dir)
         np.save(embedding_name, embedding)
-    embedding_list = [np.load(embedding_file) for embedding_file in sorted(temp_embeddings_dir.glob("*.npy"))]
+    embedding_list = [np.load(embedding_file) for embedding_file in sorted(embeddings_temp_dir.glob("*.npy"))]
     embeddings = np.concatenate(embedding_list)
     if not embeddings_dir.exists():
         os.mkdir(embeddings_dir)
     np.save(embeddings_dir / (embedding_file_name+'.npy'), embeddings)
+    shutil.rmtree(embeddings_temp_dir)
     
