@@ -9,6 +9,10 @@ numpy = "*"
 torch = "*"
 gradio = "*"
 pillow = "*"
+pandas = "*"
+tqdm = "*"
+datasets = "*"
+fastapi = "*"
 
 [dev-packages]
 jupyter = "*"
