@@ -86,5 +86,47 @@ class ImageBatchGenerator:
         self.current_index = end
         return [self._load_image(url) for url in self.urls[start:end]]
 
+def compute_dataset_visual_embedding(
+    model: CLIPModel,
+    processor: CLIPProcessor,
+    batch_generator: ImageBatchGenerator,
+    embedding_file_name: str="embeddings",
+    embeddings_dir_path: str="./embeddings",
+    embeddings_temp_dir_path: str="./temp_embeddings",
+    device: str="cpu"
+) -> None:
+    """
+    Compute the visual embeddings for a dataset using a pre-trained CLIP model.
 
+    Parameters
+    ----------
+    model : CLIPModel
+        A pre-trained instance of a CLIP model
+    processor : CLIPProcessor
+        A instance of the processor that pre-process the images before inference
+    batch_generator : ImageBatchGenerator
+        An generator object which yield batches of images 
+    embedding_file_name : str, optional
+        The name of the file to save the embeddings to, by default "embeddings"
+    embeddings_dir_path : str, optional
+        The directory path where the embeddings will be saved, by default "./embeddings"
+    embeddings_temp_dir_path : str, optional
+        The directory path where the embeddings will be temporarily saved, by default "./temp_embeddings"
+    device : str, optional
+        The device to run the inference on. It can be 'cpu' or 'cuda:x' where x is the index of the GPU, by default "cpu"
+    """
+    loop = tqdm(batch_generator)
+    temp_embeddings_dir = Path(embeddings_temp_dir_path)
+    embeddings_dir = Path(embeddings_dir_path)
+    for batch_idx, batch in enumerate(loop):
+        embedding = compute_embedding(model, processor, batch, device=device).detach().numpy()
+        embedding_name = temp_embeddings_dir / f"{batch_idx:05d}.npy"
+        if not temp_embeddings_dir.exists():
+            os.mkdir(temp_embeddings_dir)
+        np.save(embedding_name, embedding)
+    embedding_list = [np.load(embedding_file) for embedding_file in sorted(temp_embeddings_dir.glob("*.npy"))]
+    embeddings = np.concatenate(embedding_list)
+    if not embeddings_dir.exists():
+        os.mkdir(embeddings_dir)
+    np.save(embeddings_dir / (embedding_file_name+'.npy'), embeddings)
     
