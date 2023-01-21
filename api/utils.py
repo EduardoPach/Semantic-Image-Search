@@ -75,7 +75,7 @@ def fetch_image(url: str) -> tuple[str, Image.Image]:
         print(f"Timeout Error: {errt}")
     except requests.exceptions.RequestException as err:
         print(f"Something Else: {err}")
-    return None
+    return url, None
 
 class ImageBatchGenerator:
     """
@@ -93,19 +93,19 @@ class ImageBatchGenerator:
         self.urls = urls
         self.batch_size = batch_size
         self.executor = ThreadPoolExecutor()
+        self.futures = self.executor.map(fetch_image, self.urls)
     
     def __len__(self) -> int:
         return (len(self.urls) + self.batch_size - 1) // self.batch_size
 
     def __iter__(self) -> ImageBatchGenerator:
-        self.futures = [self.executor.submit(fetch_image, url) for url in self.urls]
         return self
 
     def __next__(self) -> dict[str, Union[str, Image.Image]]:
         images = []
         urls = []
-        for future in as_completed(self.futures):
-            url, image = future.result()
+        for future in self.futures:
+            url, image = future
             if image is not None:
                 images.append(image)
                 urls.append(url)
@@ -148,6 +148,8 @@ def compute_dataset_visual_embedding(
     loop = tqdm(batch_generator)
     embeddings_temp_dir = Path(embeddings_temp_dir_path)
     embeddings_dir = Path(embeddings_dir_path)
+    embedding_file_path = embeddings_dir / (embedding_file_name+'.npy')
+    url_file_path = embeddings_dir / (embedding_file_name+'.csv')
     for batch_idx, batch in enumerate(loop):
         images, urls = batch.values()
         embedding = compute_embedding(model, processor, images, device=device).detach().cpu().numpy()
@@ -163,7 +165,15 @@ def compute_dataset_visual_embedding(
     urls = pd.concat(url_list).reset_index(drop=True)
     if not embeddings_dir.exists():
         os.mkdir(embeddings_dir)
-    np.save(embeddings_dir / (embedding_file_name+'.npy'), embeddings)
-    urls.to_csv(embeddings_dir / (embedding_file_name+'.csv'))
+    if embedding_file_path.exists() and url_file_path.exists():
+        curr_embeddings = np.load(embedding_file_path)
+        embeddings = np.concatenate([curr_embeddings, embeddings])
+        np.save(embeddings_dir / (embedding_file_name+'.npy'), embeddings)
+        curr_urls = pd.read_csv(url_file_path)
+        urls = pd.concat([curr_urls, urls]).reset_index(drop=True)
+        urls.to_csv(url_file_path, index=False)
+    else:
+        np.save(embedding_file_path, embeddings)
+        urls.to_csv(url_file_path, index=False)
     shutil.rmtree(embeddings_temp_dir)
     
