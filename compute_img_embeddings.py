@@ -36,6 +36,7 @@ def main(args):
     for batch_idx, batch in enumerate(loop):
         images, urls = batch.values()
         embedding = compute_embedding(model, processor, images, device=device)
+        embedding /= np.linalg.norm(embedding, axis=1, keepdims=True)
         embedding_name = embeddings_temp_dir / f"{batch_idx:05d}.npy"
         url_names = embeddings_temp_dir / f"{batch_idx:05d}.csv"
         if not embeddings_temp_dir.exists():
