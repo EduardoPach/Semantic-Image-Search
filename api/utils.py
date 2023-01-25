@@ -14,6 +14,7 @@ import pandas as pd
 from PIL import Image
 from tqdm import tqdm
 from transformers import CLIPModel, CLIPProcessor
+from sklearn.metrics.pairwise import cosine_similarity
 
 def compute_embedding(
     model: CLIPModel, 
@@ -21,7 +22,7 @@ def compute_embedding(
     batch: Union[list[Image.Image], list[str]], 
     embedding_type: str="visual",
     device: str="cpu"
-) -> torch.Tensor:
+) -> np.array:
     """_summary_
 
     Parameters
@@ -45,10 +46,10 @@ def compute_embedding(
     model.to(device)
     if embedding_type=="visual":
         processed_images = processor(images=batch, return_tensors="pt").to(device)
-        return model.get_image_features(**processed_images)
+        return model.get_image_features(**processed_images).detach().cpu().numpy()
     elif embedding_type=="text":
         processed_text = processor(text=batch, return_tensors="pt").to(device)
-        return model.get_text_features(**processed_text)
+        return model.get_text_features(**processed_text).detach().cpu().numpy()
 
 def fetch_image(url: str) -> tuple[str, Image.Image]:
     """Fetch image from url
@@ -116,64 +117,48 @@ class ImageBatchGenerator:
             raise StopIteration
         return {"images": images, "urls": urls}
 
-def compute_dataset_visual_embedding(
-    model: CLIPModel,
-    processor: CLIPProcessor,
-    batch_generator: ImageBatchGenerator,
-    embedding_file_name: str="embeddings",
-    embeddings_dir_path: str="./embeddings",
-    embeddings_temp_dir_path: str="./temp_embeddings",
-    device: str="cpu"
-) -> None:
-    """
-    Compute the visual embeddings for a dataset using a pre-trained CLIP model.
+def search_image_from_text(
+    model: CLIPModel, 
+    processor: CLIPProcessor, 
+    query: str,
+    k: int=15,
+    embedding_dir: str="./embeddings"
+) -> list[Image.Image]:
+    """Get's the top k images most similar to the 
+    text query.
 
     Parameters
     ----------
     model : CLIPModel
-        A pre-trained instance of a CLIP model
+        A CLIP model
     processor : CLIPProcessor
-        A instance of the processor that pre-process the images before inference
-    batch_generator : ImageBatchGenerator
-        An generator object which yield batches of images 
-    embedding_file_name : str, optional
-        The name of the file to save the embeddings to, by default "embeddings"
-    embeddings_dir_path : str, optional
-        The directory path where the embeddings will be saved, by default "./embeddings"
-    embeddings_temp_dir_path : str, optional
-        The directory path where the embeddings will be temporarily saved, by default "./temp_embeddings"
-    device : str, optional
-        The device to run the inference on. It can be 'cpu' or 'cuda:x' where x is the index of the GPU, by default "cpu"
+        Processor for CLIP
+    query : str
+        A text query to be matched with the images
+    k : int, optional
+        The number of images to be retrieved, by default 15
+    embedding_dir : str, optional
+        Path to directory where embeddings are stored, by default "./embeddings"
+
+    Returns
+    -------
+    list[Image.Image]
+        List of the top k images most similar with the text query
     """
-    loop = tqdm(batch_generator)
-    embeddings_temp_dir = Path(embeddings_temp_dir_path)
-    embeddings_dir = Path(embeddings_dir_path)
-    embedding_file_path = embeddings_dir / (embedding_file_name+'.npy')
-    url_file_path = embeddings_dir / (embedding_file_name+'.csv')
-    for batch_idx, batch in enumerate(loop):
-        images, urls = batch.values()
-        embedding = compute_embedding(model, processor, images, device=device).detach().cpu().numpy()
-        embedding_name = embeddings_temp_dir / f"{batch_idx:05d}.npy"
-        url_names = embeddings_temp_dir / f"{batch_idx:05d}.csv"
-        if not embeddings_temp_dir.exists():
-            os.mkdir(embeddings_temp_dir)
-        np.save(embedding_name, embedding)
-        pd.DataFrame(urls, columns=["url"]).to_csv(url_names, index=False)
-    embedding_list = [np.load(embedding_file) for embedding_file in sorted(embeddings_temp_dir.glob("*.npy"))]
-    url_list = [pd.read_csv(url_file) for url_file in sorted(embeddings_temp_dir.glob("*.csv"))]
+    embedding_dir = Path(embedding_dir)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # Images embeddings and URLs
+    embedding_list = [np.load(embedding_file) for embedding_file in sorted(embedding_dir.glob("*.npy"))]
+    url_list = [pd.read_csv(url_file) for url_file in sorted(embedding_dir.glob("*.csv"))]
+    urls_df = pd.concat(url_list).reset_index(drop=True)
     embeddings = np.concatenate(embedding_list)
-    urls = pd.concat(url_list).reset_index(drop=True)
-    if not embeddings_dir.exists():
-        os.mkdir(embeddings_dir)
-    if embedding_file_path.exists() and url_file_path.exists():
-        curr_embeddings = np.load(embedding_file_path)
-        embeddings = np.concatenate([curr_embeddings, embeddings])
-        np.save(embeddings_dir / (embedding_file_name+'.npy'), embeddings)
-        curr_urls = pd.read_csv(url_file_path)
-        urls = pd.concat([curr_urls, urls]).reset_index(drop=True)
-        urls.to_csv(url_file_path, index=False)
-    else:
-        np.save(embedding_file_path, embeddings)
-        urls.to_csv(url_file_path, index=False)
-    shutil.rmtree(embeddings_temp_dir)
-    
+    # Query embedding
+    text_emb = compute_embedding(model, processor, [query], "text", device)
+    text_emb /= np.linalg.norm(text_emb)
+    # Getting Similarities
+    similarities = cosine_similarity(embeddings, text_emb.T.reshape(1, -1))
+    top_k_indices = similarities.flatten().argsort()[-k:]
+    # Getting list of Images
+    urls = urls_df.loc[top_k_indices, "url"].tolist()
+
+    return [fetch_image(url)[-1] for url in urls]
