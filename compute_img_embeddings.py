@@ -13,7 +13,16 @@ from transformers import CLIPModel, CLIPProcessor, CLIPVisionModel
 
 from api.utils import ImageBatchGenerator, compute_embedding
 
-def main(args):
+def main(args: argparse.Namespace) -> None:
+    """Computes the normalized embeddings for a list of Image URLs
+    and store them in .npy file with a correspondet .csv file that 
+    matches indexes. 
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        CLI arguments
+    """
     embeddings_temp_dir_path = args.embeddings_temp_dir
     embeddings_dir_path = args.embeddings_dir
     embedding_file_name = args.embedding_filename
