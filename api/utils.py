@@ -161,4 +161,4 @@ def search_image_from_text(
     # Getting list of Images
     urls = urls_df.loc[top_k_indices, "url"].tolist()
 
-    return [fetch_image(url)[-1] for url in urls]
+    return urls
