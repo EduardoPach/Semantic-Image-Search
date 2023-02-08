@@ -117,15 +117,15 @@ class ImageBatchGenerator:
             raise StopIteration
         return {"images": images, "urls": urls}
 
-def search_image_from_text(
+def search_image_from_query(
     model: CLIPModel, 
     processor: CLIPProcessor, 
-    query: str,
+    query: Union[Image.Image, str],
     k: int=15,
     embedding_dir: str="./embeddings"
 ) -> list[Image.Image]:
     """Get's the top k images most similar to the 
-    text query.
+    query. Where query can be text or an image.
 
     Parameters
     ----------
@@ -133,7 +133,7 @@ def search_image_from_text(
         A CLIP model
     processor : CLIPProcessor
         Processor for CLIP
-    query : str
+    query : Union[Image.Image, str]
         A text query to be matched with the images
     k : int, optional
         The number of images to be retrieved, by default 15
@@ -143,7 +143,7 @@ def search_image_from_text(
     Returns
     -------
     list[Image.Image]
-        List of the top k images most similar with the text query
+        List of the top k most similar images' URL with the query
     """
     embedding_dir = Path(embedding_dir)
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -153,10 +153,11 @@ def search_image_from_text(
     urls_df = pd.concat(url_list).reset_index(drop=True)
     embeddings = np.concatenate(embedding_list)
     # Query embedding
-    text_emb = compute_embedding(model, processor, [query], "text", device)
-    text_emb /= np.linalg.norm(text_emb)
+    query_type = "visual" if isinstance(query, Image.Image) else "text"
+    query_emb = compute_embedding(model, processor, [query], query_type, device)
+    query_emb /= np.linalg.norm(query_emb)
     # Getting Similarities
-    similarities = cosine_similarity(embeddings, text_emb.T.reshape(1, -1))
+    similarities = cosine_similarity(embeddings, query_emb.T.reshape(1, -1))
     top_k_indices = similarities.flatten().argsort()[-k:]
     # Getting list of Images
     urls = urls_df.loc[top_k_indices, "url"].tolist()
