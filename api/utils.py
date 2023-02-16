@@ -1,55 +1,17 @@
 from __future__ import annotations
 
-import os
-import shutil
 import requests
 from io import BytesIO
-from pathlib import Path
 from typing import Union
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
-import torch
-import numpy as np
-import pandas as pd
 from PIL import Image
-from tqdm import tqdm
 from transformers import CLIPModel, CLIPProcessor
-from sklearn.metrics.pairwise import cosine_similarity
 
-def compute_embedding(
-    model: CLIPModel, 
-    processor: CLIPProcessor, 
-    batch: Union[list[Image.Image], list[str]], 
-    embedding_type: str="visual",
-    device: str="cpu"
-) -> np.array:
-    """_summary_
-
-    Parameters
-    ----------
-    model : CLIPModel
-        _description_
-    processor : CLIPProcessor
-        _description_
-    batch : Union[list[Image.Image], list[str]]
-        _description_
-    embedding_type : str, optional
-        _description_, by default "visual"
-    device : str, optional
-        _description_, by default "cpu"
-
-    Returns
-    -------
-    torch.Tensor
-        _description_
-    """
-    model.to(device)
-    if embedding_type=="visual":
-        processed_images = processor(images=batch, return_tensors="pt").to(device)
-        return model.get_image_features(**processed_images).detach().cpu().numpy()
-    elif embedding_type=="text":
-        processed_text = processor(text=batch, return_tensors="pt").to(device)
-        return model.get_text_features(**processed_text).detach().cpu().numpy()
+def load_model(model_id: str) -> tuple[CLIPModel, CLIPProcessor]:
+    model = CLIPModel.from_pretrained(model_id)
+    processor = CLIPProcessor.from_pretrained(model_id)
+    return model, processor
 
 def fetch_image(url: str) -> tuple[str, Image.Image]:
     """Fetch image from url
@@ -116,50 +78,3 @@ class ImageBatchGenerator:
             self.executor.shutdown()
             raise StopIteration
         return {"images": images, "urls": urls}
-
-def search_image_from_query(
-    model: CLIPModel, 
-    processor: CLIPProcessor, 
-    query: Union[Image.Image, str],
-    k: int=15,
-    embedding_dir: str="./embeddings"
-) -> list[Image.Image]:
-    """Get's the top k images most similar to the 
-    query. Where query can be text or an image.
-
-    Parameters
-    ----------
-    model : CLIPModel
-        A CLIP model
-    processor : CLIPProcessor
-        Processor for CLIP
-    query : Union[Image.Image, str]
-        A text query to be matched with the images
-    k : int, optional
-        The number of images to be retrieved, by default 15
-    embedding_dir : str, optional
-        Path to directory where embeddings are stored, by default "./embeddings"
-
-    Returns
-    -------
-    list[Image.Image]
-        List of the top k most similar images' URL with the query
-    """
-    embedding_dir = Path(embedding_dir)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    # Images embeddings and URLs
-    embedding_list = [np.load(embedding_file) for embedding_file in sorted(embedding_dir.glob("*.npy"))]
-    url_list = [pd.read_csv(url_file) for url_file in sorted(embedding_dir.glob("*.csv"))]
-    urls_df = pd.concat(url_list).reset_index(drop=True)
-    embeddings = np.concatenate(embedding_list)
-    # Query embedding
-    query_type = "visual" if isinstance(query, Image.Image) else "text"
-    query_emb = compute_embedding(model, processor, [query], query_type, device)
-    query_emb /= np.linalg.norm(query_emb)
-    # Getting Similarities
-    similarities = cosine_similarity(embeddings, query_emb.T.reshape(1, -1))
-    top_k_indices = similarities.flatten().argsort()[-k:]
-    # Getting list of Images
-    urls = urls_df.loc[top_k_indices, "url"].tolist()
-
-    return urls
