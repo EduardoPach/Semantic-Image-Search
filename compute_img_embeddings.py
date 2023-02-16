@@ -5,13 +5,13 @@ import shutil
 import argparse
 from pathlib import Path
 
+import faiss
 import torch
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from transformers import CLIPModel, CLIPProcessor, CLIPVisionModel
 
-from api.utils import ImageBatchGenerator, compute_embedding
+from api import ImageBatchGenerator, SemanticSearcher
 
 def main(args: argparse.Namespace) -> None:
     """Computes the normalized embeddings for a list of Image URLs
@@ -26,52 +26,62 @@ def main(args: argparse.Namespace) -> None:
     embeddings_temp_dir_path = args.embeddings_temp_dir
     embeddings_dir_path = args.embeddings_dir
     embedding_file_name = args.embedding_filename
+    index_checkpoint = args.index_checkpoint
     data_file = args.input_data
     batch_size = args.batch_size
+    model_id = args.model_id
 
-    model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
-    processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    searcher = SemanticSearcher(model_id=model_id)
+    embedding_dimension = searcher.model.visual_projection.out_features
 
     data = pd.read_csv(data_file)
     urls = data["path"].tolist()
     batch_generator = ImageBatchGenerator(urls, batch_size)
 
+    if index_checkpoint:
+        index = faiss.read_index(index_checkpoint)
+    else:
+        index = faiss.IndexFlatL2(embedding_dimension)
+
     loop = tqdm(batch_generator)
     embeddings_temp_dir = Path(embeddings_temp_dir_path)
     embeddings_dir = Path(embeddings_dir_path)
-    embedding_file_path = embeddings_dir / (embedding_file_name+'.npy')
-    url_file_path = embeddings_dir / (embedding_file_name+'.csv')
     for batch_idx, batch in enumerate(loop):
         images, urls = batch.values()
-        embedding = compute_embedding(model, processor, images, device=device)
+        embedding = searcher(images)
         embedding /= np.linalg.norm(embedding, axis=1, keepdims=True)
-        embedding_name = embeddings_temp_dir / f"{batch_idx:05d}.npy"
+        index.add(embedding)
         url_names = embeddings_temp_dir / f"{batch_idx:05d}.csv"
         if not embeddings_temp_dir.exists():
             os.mkdir(embeddings_temp_dir)
-        np.save(embedding_name, embedding)
         pd.DataFrame(urls, columns=["url"]).to_csv(url_names, index=False)
-    embedding_list = [np.load(embedding_file) for embedding_file in sorted(embeddings_temp_dir.glob("*.npy"))]
     url_list = [pd.read_csv(url_file) for url_file in sorted(embeddings_temp_dir.glob("*.csv"))]
-    embeddings = np.concatenate(embedding_list)
     urls = pd.concat(url_list).reset_index(drop=True)
     if not embeddings_dir.exists():
         os.mkdir(embeddings_dir)
-    if embedding_file_path.exists() and url_file_path.exists():
-        curr_embeddings = np.load(embedding_file_path)
-        embeddings = np.concatenate([curr_embeddings, embeddings])
-        np.save(embeddings_dir / (embedding_file_name+'.npy'), embeddings)
+    if index_checkpoint:
+        url_file_path = embeddings_dir / (index_checkpoint.split(".")[0]+'.csv')
         curr_urls = pd.read_csv(url_file_path)
         urls = pd.concat([curr_urls, urls]).reset_index(drop=True)
         urls.to_csv(url_file_path, index=False)
+        faiss.write_index(index, str(embeddings_dir / index_checkpoint))
     else:
-        np.save(embedding_file_path, embeddings)
+        n = len(list(embeddings_dir.glob(".csv"))) + 1 # Number of .csv (metadata linked to a index) n_csv = n_index
+        url_file_path = embeddings_dir / f"{n:05d}.csv"
+        index_file_path = embeddings_dir / f"{n:05d}.index"
         urls.to_csv(url_file_path, index=False)
+        faiss.write_index(index, index_file_path)
     shutil.rmtree(embeddings_temp_dir)
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--model-id",
+        type=str,
+        default="openai/clip-vit-base-patch32",
+        help="Which version of CLIP to use"
+    )
     
     parser.add_argument(
         "--batch-size",
