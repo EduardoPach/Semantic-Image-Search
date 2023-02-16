@@ -25,7 +25,6 @@ def main(args: argparse.Namespace) -> None:
     """
     embeddings_temp_dir_path = args.embeddings_temp_dir
     embeddings_dir_path = args.embeddings_dir
-    embedding_file_name = args.embedding_filename
     index_checkpoint = args.index_checkpoint
     data_file = args.input_data
     batch_size = args.batch_size
@@ -111,10 +110,10 @@ if __name__=="__main__":
     )
 
     parser.add_argument(
-        "--embedding-filename",
+        "--index-checkpoint",
         type=str,
-        default="embeddings",
-        help="Name of the final embedding file to be stored inside embeddings_dir."
+        default="",
+        help="Name of existing FlatL2 faiss index to be used."
     )
     
     args = parser.parse_args()
