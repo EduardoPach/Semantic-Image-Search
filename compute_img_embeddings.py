@@ -29,7 +29,7 @@ def main(args: argparse.Namespace) -> None:
     data_file = args.input_data
     batch_size = args.batch_size
     model_id = args.model_id
-
+    print("----------- Initializing Semantic Searcher -----------")
     searcher = SemanticSearcher(model_id=model_id)
     embedding_dimension = searcher.model.visual_projection.out_features
 
@@ -69,7 +69,7 @@ def main(args: argparse.Namespace) -> None:
         url_file_path = embeddings_dir / f"{n:05d}.csv"
         index_file_path = embeddings_dir / f"{n:05d}.index"
         urls.to_csv(url_file_path, index=False)
-        faiss.write_index(index, index_file_path)
+        faiss.write_index(index, str(index_file_path))
     shutil.rmtree(embeddings_temp_dir)
 
 if __name__=="__main__":
