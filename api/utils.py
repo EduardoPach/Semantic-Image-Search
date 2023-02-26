@@ -78,3 +78,4 @@ class ImageBatchGenerator:
             self.executor.shutdown()
             raise StopIteration
         return {"images": images, "urls": urls}
+    
