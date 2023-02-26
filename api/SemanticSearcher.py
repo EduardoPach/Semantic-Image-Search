@@ -22,7 +22,7 @@ class SemanticSearcher:
     def __init__(self, model_id: str, index: faiss.Index=None) -> None:
         self.model, self.processor = load_model(model_id)
         self.index = index
-        self.device = "cuda" if torch.cuda.is_available else "cpu"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def __call__(self, batch: Union[list[Image.Image], list[str]]) -> np.array:
         """_summary_
