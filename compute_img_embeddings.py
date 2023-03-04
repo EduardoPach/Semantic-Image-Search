@@ -47,7 +47,7 @@ def main(args: argparse.Namespace) -> None:
     embeddings_dir = Path(embeddings_dir_path)
     for batch_idx, batch in enumerate(loop):
         images, urls = batch.values()
-        embedding = searcher(images)
+        embedding = searcher.process(images)
         embedding /= np.linalg.norm(embedding, axis=1, keepdims=True)
         index.add(embedding)
         url_names = embeddings_temp_dir / f"{batch_idx:05d}.csv"
