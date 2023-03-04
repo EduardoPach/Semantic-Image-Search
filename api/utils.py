@@ -40,6 +40,23 @@ def fetch_image(url: str) -> tuple[str, Image.Image]:
         print(f"Something Else: {err}")
     return url, None
 
+def index_to_url(index: list[int], url_table: pd.DataFrame) -> list[str]:
+    """Converts a list of indices to a list of urls
+
+    Parameters
+    ----------
+    index : list[int]
+        List of indices
+    url_table : pd.DataFrame
+        DataFrame containing the urls
+
+    Returns
+    -------
+    list[str]
+        List of urls
+    """
+    return url_table.iloc[index].url.tolist()
+
 class ImageBatchGenerator:
     """
     A generator class that get's as arguments a list of URLs and batch size and generates batches of PIL images
