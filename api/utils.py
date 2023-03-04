@@ -5,6 +5,7 @@ from io import BytesIO
 from typing import Union
 from concurrent.futures import ThreadPoolExecutor
 
+import pandas as pd
 from PIL import Image
 from transformers import CLIPModel, CLIPProcessor
 

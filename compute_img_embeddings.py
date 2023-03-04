@@ -15,7 +15,7 @@ from api import ImageBatchGenerator, SemanticSearcher
 
 def main(args: argparse.Namespace) -> None:
     """Computes the normalized embeddings for a list of Image URLs
-    and store them in .npy file with a correspondet .csv file that 
+    and store them in .index file with a correspondet .csv file that 
     matches indexes. 
 
     Parameters
