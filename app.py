@@ -5,13 +5,13 @@ from st_clickable_images import clickable_images
 
 from api import SemanticSearcher, index_to_url
 
-@st.experimental_singleton
+@st.cache_resource
 def load_searcher() -> SemanticSearcher:
     index = faiss.read_index("embeddings/00001.index")
     searcher = SemanticSearcher("openai/clip-vit-base-patch32", index)
     return searcher
 
-@st.cache
+@st.cache_data
 def load_url2index() -> pd.DataFrame:
     url2index = pd.read_csv("embeddings/00001.csv")
     return url2index
