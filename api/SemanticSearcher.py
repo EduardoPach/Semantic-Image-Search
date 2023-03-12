@@ -5,9 +5,10 @@ from typing import Union
 import torch
 import faiss
 import numpy as np
+import pandas as pd
 from PIL import Image
 
-from api.utils import load_model
+from api.utils import *
 
 class SemanticSearcher:
     """Object that performs semantic search on images and text
@@ -18,10 +19,13 @@ class SemanticSearcher:
         HuggingFace model id for MultiModal model
     index : faiss.Index, optional
         Faiss index with embeddings to search, by default None
+    index_to_path : pd.DataFrame, optional
+        DataFrame containing the image paths, by default None
     """
-    def __init__(self, model_id: str, index: faiss.Index=None) -> None:
+    def __init__(self, model_id: str, index: faiss.Index=None, index_to_path: pd.DataFrame=None) -> None:
         self.model, self.processor = load_model(model_id)
         self.index = index
+        self.index_to_path = index_to_path
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def process(self, batch: Union[list[Image.Image], list[str]]) -> np.array:
@@ -46,7 +50,7 @@ class SemanticSearcher:
             processed_text = self.processor(text=batch, return_tensors="pt").to(self.device)
             return self.model.get_text_features(**processed_text).detach().cpu().numpy()
 
-    def __call__(self, query: Union[list[Image.Image], list[str]], k: int=5) -> np.array:
+    def __call__(self, query: Union[list[Image.Image], list[str]], k: int=5) -> list:
         """Perform a semantic search on a batch of images or text
 
         Parameters
@@ -67,7 +71,7 @@ class SemanticSearcher:
         # Getting Similarities
         _, I = self.index.search(query_emb, k)
         
-        return I.flatten()
+        return index_to_path(I.flatten().tolist(), self.index_to_path.copy())
 
     @staticmethod
     def _infer_type(x: Union[list[Image.Image], list[str]]) -> str:

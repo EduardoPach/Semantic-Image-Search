@@ -14,49 +14,37 @@ def load_model(model_id: str) -> tuple[CLIPModel, CLIPProcessor]:
     processor = CLIPProcessor.from_pretrained(model_id)
     return model, processor
 
-def fetch_image(url: str) -> tuple[str, Image.Image]:
-    """Fetch image from url
+def fetch_image(img_path: str) -> tuple[str, Image.Image]:
+    """Fetch image from img_path
 
     Parameters
     ----------
-    url : str
-        url of the image
+    img_path : str
+        img_path of the image
 
     Returns
     -------
     tuple[str, Image.Image]
-        tuple (url, image) where image is PIL image object and url is the url of the image
+        tuple (img_path, image) where image is PIL image object and img_path is the img_path of the image
     """
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        return url, Image.open(BytesIO(response.content))
-    except requests.exceptions.HTTPError as errh:
-        print(f"HTTP Error: {errh}")
-    except requests.exceptions.ConnectionError as errc:
-        print(f"Error Connecting: {errc}")
-    except requests.exceptions.Timeout as errt:
-        print(f"Timeout Error: {errt}")
-    except requests.exceptions.RequestException as err:
-        print(f"Something Else: {err}")
-    return url, None
+    return img_path, Image.open(img_path)
 
-def index_to_url(index: list[int], url_table: pd.DataFrame) -> list[str]:
+def index_to_path(index: list[int], img_path_table: pd.DataFrame) -> list[str]:
     """Converts a list of indices to a list of urls
 
     Parameters
     ----------
     index : list[int]
         List of indices
-    url_table : pd.DataFrame
+    img_path_table : pd.DataFrame
         DataFrame containing the urls
 
     Returns
     -------
     list[str]
-        List of urls
+        List of image paths
     """
-    return url_table.iloc[index].url.tolist()
+    return img_path_table.iloc[index]['path'].tolist()
 
 class ImageBatchGenerator:
     """
@@ -65,8 +53,8 @@ class ImageBatchGenerator:
 
     Parameters
     ----------
-    urls : list[str]
-        List of URLs to fetch images from
+    img_paths : list[str]
+        List of image paths to fetch images from
     batch_size : int
         The size of the batches to be generated
     """
@@ -84,16 +72,16 @@ class ImageBatchGenerator:
 
     def __next__(self) -> dict[str, Union[str, Image.Image]]:
         images = []
-        urls = []
+        img_paths = []
         for future in self.futures:
-            url, image = future
+            img_path, image = future
             if image is not None:
                 images.append(image)
-                urls.append(url)
+                img_paths.append(img_path)
             if len(images) == self.batch_size:
                 break
         if len(images) == 0:
             self.executor.shutdown()
             raise StopIteration
-        return {"images": images, "urls": urls}
+        return {"images": images, "urls": img_paths}
     
