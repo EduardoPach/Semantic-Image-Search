@@ -14,7 +14,7 @@ from api import ImageBatchGenerator, SemanticSearcher
 
 def main(
     input_dir: str,
-    model_id: str="openai/clip-vit-base-patch32",
+    model_id: str="openai/clip-vit-large-patch14",
     batch_size: int=100
 ) -> None:
     """Precompute image embeddings and save them to disk with 
