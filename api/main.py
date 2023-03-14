@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import io
 import base64
-from typing import Union, List
+from typing import List
 
 import faiss
 import pandas as pd
 from PIL import Image
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, conlist
 
 from api import SemanticSearcher
@@ -24,8 +24,8 @@ app = FastAPI(title="Image Semantic Search - Unsplash")
 
 @app.on_event("startup")
 def load_searcher() -> None:
-    index = faiss.read_index("embeddings/00001.index")
-    db = pd.read_csv("embeddings/00001.csv")
+    index = faiss.read_index("./embeddings/00001.index")
+    db = pd.read_csv("./embeddings/00001.csv")
     global searcher
     searcher = SemanticSearcher("openai/clip-vit-base-patch32", index, db)
 
@@ -51,3 +51,8 @@ def search(query_batch: Query) -> SearchResult:
         HTTPException(status_code=400, detail="Query must be a list of strings or base64 encoded images")
     urls = searcher(query, k)
     return SearchResult(urls=urls)
+
+
+if __name__=="__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
