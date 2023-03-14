@@ -1,11 +1,28 @@
 services:
   backend-api:
-    build: ./api
+    build:
+      context: .
+      dockerfile: ./api/Dockerfile
+    # image: semantic-search-api:latest
     ports:
       - 8000:8000
+    volumes:
+      - ./api:/app/api
+    networks:
+      - project_network
   frontend:
-    build: ./frontend
+    build:
+      context: .
+      dockerfile: ./frontend/Dockerfile
+    # image: semantic-search-frontend:latest
     ports:
       - 8501:8501
+    volumes:
+      - ./frontend:/app/frontend
     depends_on:
       - backend-api
+    networks:
+      - project_network
+
+networks:
+  project_network:
