@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import base64
 from typing import Union, List
 
 import faiss
@@ -12,7 +13,7 @@ from pydantic import BaseModel, conlist
 from api import SemanticSearcher
 
 class Query(BaseModel):
-    query: conlist(Union[str, bytes], min_items=1, max_items=5)
+    query: conlist(str, min_items=1, max_items=5)
     k: int = 10
 
 class SearchResult(BaseModel):
@@ -39,9 +40,14 @@ def search(query_batch: Query) -> SearchResult:
     k = query_batch.k
     if not isinstance(query, list):
         HTTPException(status_code=400, detail="Query must be a list")
-    elif isinstance(query[0], bytes):
-        query = [Image.open(io.BytesIO(q)) for q in query]
+    elif query[0].startswith("data:image/"):
+        query = [
+            Image.open(
+                io.BytesIO(base64.b64decode(item.split(",")[1]))
+            )
+            for item in query
+        ]
     elif not isinstance(query[0], str):
-        HTTPException(status_code=400, detail="Query must be a list of strings or image bytes")
+        HTTPException(status_code=400, detail="Query must be a list of strings or base64 encoded images")
     urls = searcher(query, k)
     return SearchResult(urls=urls)
