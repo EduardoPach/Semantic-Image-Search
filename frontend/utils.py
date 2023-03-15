@@ -9,7 +9,7 @@ def send_request(query: str, k: int) -> list[str]:
         payload = {"query": [query], "k": k}
         response = requests.post(url, json=payload)
     except:
-        url = "http://backend-api/search"
+        url = "http://backend-api:8000/search"
         payload = {"query": [query], "k": k}
         response = requests.post(url, json=payload)
     return response.json()["urls"][0]
