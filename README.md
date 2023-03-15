@@ -8,22 +8,30 @@ The Faiss index was generated using a `compute_img_embeddings.py` script, which 
 
 A Streamlit app was created in the `app.py` script to provide a web interface for searching the index using text queries. At the moment, the web interface only allows searching for images using text, but support for image-based queries will be added in the future.
 
+A FastAPI backend was also created in the api directory in the main.py file. The backend provides a /search endpoint that can be used to search the index programmatically using JSON payloads.
+
 A `SemanticSearcher` object was also created which is a wrapper around the CLIP model that allows using images or texts to query a Faiss index. The implementation of this object is in the `api` directory in the `SemanticSearcher.py` file.
 
 ## Usage 
 
-### Using as it is
+If you just want to see how the application looks like you can launch it with `docker compose` by running:
 
-If you want the Image Semantic Search with the same sample data used you can follow these steps:
+```
+# Run this on the root directory of the Repo
+docker compose up 
+```
 
-1. Clone the repository
-2. Create the conda environment with `conda env create -f environment.yml`
-3. Activate the environment with `conda activate <env_name>`
+After that access `http://localhost:8501/` for the Streamlit Interface and `http://localhost:8000/docs` for the API documentation
+
+In case you want to recreate the environment and run manually, follow these steps:
+
+1. Create the conda environment with `conda env create -f environment.yml`
+2. Activate the environment with `conda activate semantic`
+3. Run `uvicorn api.main:app --host 0.0.0.0 --port 8000`
 4. Run `streamlit run app.py` to start the web interface
-5. Use the web interface to search for images by entering text queries. Image-based searches will be added in the future.
 
 
-### Adapting to Different Datasets
+## Adapting to Different Datasets
 
 If you want to adapt the current implementatio to a different dataset you'll have to pre-compute the embeddings. In order to do that use the `compute_img_embeddings.py` file, here's a bit more explanation on how to use it:
 
