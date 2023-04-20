@@ -6,7 +6,7 @@ This project uses OpenAI's CLIP model through Hugging Face's transformers librar
 
 The Faiss index was generated using a `compute_img_embeddings.py` script, which can be optionally used to generate the embeddings. In the repo, we already have the pre-computed embeddings, so you can directly use the pre-generated index files.
 
-A Streamlit app was created in the `app.py` script to provide a web interface for searching the index using text queries. At the moment, the web interface only allows searching for images using text, but support for image-based queries will be added in the future.
+A Streamlit app was created in the `app.py` script to provide a web interface for searching the index using text or image queries.
 
 A FastAPI backend was also created in the api directory in the main.py file. The backend provides a /search endpoint that can be used to search the index programmatically using JSON payloads.
 
