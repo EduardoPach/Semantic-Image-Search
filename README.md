@@ -21,7 +21,7 @@ If you just want to see how the application looks like you can launch it with `d
 docker compose up 
 ```
 
-After that access `http://localhost:8501/` for the Streamlit Interface and `http://localhost:8000/docs` for the API documentation
+After that access `http://localhost:8501/` for the Streamlit Interface and `http://localhost:8000/docs` for the API documentation.
 
 In case you want to recreate the environment and run manually, follow these steps:
 
