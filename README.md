@@ -2,7 +2,7 @@
 
 ![](assets/demo.gif)
 
-This project uses OpenAI's CLIP model through Hugging Face's transformers library along with the Unsplash dataset (on data.csv file) and Facebook Faiss library to create an image semantic search engine.
+This project uses OpenAI's **CLIP model** through Hugging Face's transformers library along with the Unsplash dataset (on data.csv file) and Facebook Faiss library to create an image semantic search engine.
 
 The Faiss index was generated using a `compute_img_embeddings.py` script, which can be optionally used to generate the embeddings. In the repo, we already have the pre-computed embeddings, so you can directly use the pre-generated index files.
 
